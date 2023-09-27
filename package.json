@@ -1,0 +1,23 @@
+{
+  "name": "blog-app",
+  "version": "1.0.0",
+  "description": "Rest api for the blog applocation",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codal-rutvik/blog-app.git"
+  },
+  "author": "Rutvik Maheta",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/codal-rutvik/blog-app/issues"
+  },
+  "homepage": "https://github.com/codal-rutvik/blog-app#readme",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
