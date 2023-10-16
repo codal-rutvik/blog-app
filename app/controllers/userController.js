@@ -8,11 +8,11 @@ const signup = async (req, res) => {
 
   // Define a schema for data validation
   const schema = Joi.object({
-    firstName: Joi.string().required(),
-    lastName: Joi.string().required(),
-    phoneNumber: Joi.string().required(),
-    email: Joi.string().email().required(),
-    password: Joi.string().min(6).required(),
+    firstName: Joi.string(),
+    lastName: Joi.string(),
+    phoneNumber: Joi.string().regex(/^\d+$/), // Ensure only digits are allowed
+    email: Joi.string().email(),
+    password: Joi.string().min(6),
   });
 
   try {
@@ -102,4 +102,87 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { signup, login };
+async function getUserProfile(req, res) {
+  const userData = req.user; // Get the user's Data from the authenticated token
+
+  try {
+    // Fetch the user's complete profile using the userId
+    const user = await User.findById(userData?.userId);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Return the complete user profile
+    res.status(200).json({ user });
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching the user profile" });
+  }
+}
+
+async function updateUserProfile(req, res) {
+  const userData = req.user;
+
+  // Extract updated profile data from the request body
+  const { firstName, lastName, phoneNumber, email } = req.body;
+
+  const schema = Joi.object({
+    firstName: Joi.string(),
+    lastName: Joi.string(),
+    phoneNumber: Joi.string().regex(/^\d+$/), // Ensure only digits are allowed
+    email: Joi.string().email(),
+  });
+
+  const { error } = schema.validate(req.body);
+
+  if (error) {
+    return res.status(400).json({ error: error.details[0].message });
+  }
+
+  // Check if at least one field is provided in the request body
+  if (!firstName && !lastName && !phoneNumber && !email) {
+    return res
+      .status(400)
+      .json({ error: "At least one field is required for the profile update" });
+  }
+
+  try {
+    // Fetch the user's current profile
+    const user = await User.findById(userData?.userId);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Update the user's profile data
+    if (firstName) user.firstName = firstName;
+    if (lastName) user.lastName = lastName;
+    if (phoneNumber) user.phoneNumber = phoneNumber;
+    if (email) user.email = email;
+
+    // Save the updated user profile
+    await user.save();
+
+    const updatedUser = {
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phoneNumber: user.phoneNumber,
+      email: user.email,
+    };
+
+    res
+      .status(200)
+      .json({ message: "User profile updated successfully", updatedUser });
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while updating the user profile" });
+  }
+}
+
+module.exports = { signup, login, getUserProfile, updateUserProfile };
