@@ -102,7 +102,7 @@ const login = async (req, res) => {
   }
 };
 
-async function getUserProfile(req, res) {
+const getUserProfile = async (req, res) => {
   const userData = req.user; // Get the user's Data from the authenticated token
 
   try {
@@ -113,17 +113,19 @@ async function getUserProfile(req, res) {
       return res.status(404).json({ error: "User not found" });
     }
 
+    const { password, ...userProfileData } = user.toObject();
+
     // Return the complete user profile
-    res.status(200).json({ user });
+    res.status(200).json({ user: userProfileData });
   } catch (error) {
     console.error(error);
     res
       .status(500)
       .json({ error: "An error occurred while fetching the user profile" });
   }
-}
+};
 
-async function updateUserProfile(req, res) {
+const updateUserProfile = async (req, res) => {
   const userData = req.user;
 
   // Extract updated profile data from the request body
@@ -183,6 +185,6 @@ async function updateUserProfile(req, res) {
       .status(500)
       .json({ error: "An error occurred while updating the user profile" });
   }
-}
+};
 
 module.exports = { signup, login, getUserProfile, updateUserProfile };
