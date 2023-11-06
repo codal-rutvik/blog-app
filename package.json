@@ -18,6 +18,12 @@
   },
   "homepage": "https://github.com/codal-rutvik/blog-app#readme",
   "dependencies": {
-    "express": "^4.18.2"
+    "@sendgrid/mail": "^7.7.0",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "joi": "^17.11.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^7.5.4"
   }
 }
