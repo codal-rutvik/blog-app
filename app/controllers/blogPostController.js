@@ -118,32 +118,43 @@ const updateBlogPost = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const blogSchema = Joi.object({
-      title: Joi.string().required(),
-      description: Joi.string().required(),
-      tags: Joi.array().items(Joi.string()),
+    uploadImage(req, res, async (err) => {
+      if (err) {
+        return res.status(400).json({ error: "Error uploading image" });
+      }
+
+      const blogSchema = Joi.object({
+        title: Joi.string().required(),
+        description: Joi.string().required(),
+        tags: Joi.array().items(Joi.string()),
+      });
+
+      const validatedData = validateData(req.body, blogSchema);
+
+      if (typeof validatedData === "string") {
+        return res.status(400).json({ error: validatedData });
+      }
+
+      const blog = await Blog.findById(id);
+
+      if (!blog) {
+        return res.status(404).json({ error: "Blog post not found" });
+      }
+
+      // Update the blog post with validated data
+      blog.title = validatedData.title;
+      blog.description = validatedData.description;
+      blog.tags = validatedData.tags || [];
+
+      // If an image was uploaded, update the image path
+      if (req.file) {
+        blog.image = req.file.path;
+      }
+
+      await blog.save();
+
+      res.status(200).json({ message: "Blog post updated successfully", blog });
     });
-
-    const validatedData = validateData(req.body, blogSchema);
-
-    if (typeof validatedData === "string") {
-      return res.status(400).json({ error: validatedData });
-    }
-
-    const blog = await Blog.findById(id);
-
-    if (!blog) {
-      return res.status(404).json({ error: "Blog post not found" });
-    }
-
-    // Update the blog post with validated data
-    blog.title = validatedData.title;
-    blog.description = validatedData.description;
-    blog.tags = validatedData.tags || [];
-
-    await blog.save();
-
-    res.status(200).json({ message: "Blog post updated successfully", blog });
   } catch (error) {
     console.error(error);
     next(error);
