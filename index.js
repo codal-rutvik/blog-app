@@ -8,7 +8,7 @@ const ErrorHandler = require("./app/middleware/errorMiddleware");
 app.use(express.json());
 
 app.use("/api", routes);
-
+app.use("/uploads", express.static("uploads"));
 app.use(ErrorHandler);
 
 // Start the server
