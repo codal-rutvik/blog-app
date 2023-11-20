@@ -45,7 +45,10 @@ const getBlogPosts = async (req, res, next) => {
     const { tags } = req.query;
 
     if (tags) {
-      const blogPosts = await Blog.find({ tags: { $in: tags.split(",") } });
+      const blogPosts = await Blog.find({
+        tags: { $in: tags.split(",") },
+        status: "published",
+      });
 
       if (blogPosts.length === 0) {
         return res
@@ -55,7 +58,9 @@ const getBlogPosts = async (req, res, next) => {
 
       res.status(200).json({ blogPosts });
     } else {
-      const allBlogPosts = await Blog.find();
+      const allBlogPosts = await Blog.find({
+        status: "published",
+      });
       res.status(200).json({ allBlogPosts });
     }
   } catch (error) {
@@ -77,6 +82,7 @@ const createBlogPost = async (req, res, next) => {
         description: Joi.string().required(),
         author: Joi.string().required(),
         tags: Joi.array().items(Joi.string()),
+        status: Joi.string().valid("published", "draft").default("published"),
       });
 
       const blogFormData = {
@@ -84,6 +90,7 @@ const createBlogPost = async (req, res, next) => {
         description: req.body.description,
         author: userData?.userId,
         tags: req.body.tags || [],
+        status: req.body.status,
       };
 
       const { error } = blogSchema.validate(blogFormData);
@@ -99,6 +106,7 @@ const createBlogPost = async (req, res, next) => {
         description: req.body.description,
         author: userData?.userId,
         tags: req.body.tags || [],
+        status: req.body.status,
         image,
       });
 
@@ -127,6 +135,7 @@ const updateBlogPost = async (req, res, next) => {
         title: Joi.string().required(),
         description: Joi.string().required(),
         tags: Joi.array().items(Joi.string()),
+        status: Joi.string().valid("published", "draft").default("published"),
       });
 
       const validatedData = validateData(req.body, blogSchema);
@@ -145,6 +154,7 @@ const updateBlogPost = async (req, res, next) => {
       blog.title = validatedData.title;
       blog.description = validatedData.description;
       blog.tags = validatedData.tags || [];
+      blog.status = validatedData.status?.toLowerCase();
 
       // If an image was uploaded, update the image path
       if (req.file) {
