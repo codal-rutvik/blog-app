@@ -33,8 +33,15 @@ const uploadImage = (req, res, next) => {
 
   upload(req, res, (err) => {
     if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === "LIMIT_FILE_SIZE") {
+          return res
+            .status(400)
+            .json({ error: "File size should not exceed 1 MB" });
+        }
+      }
       console.error(err);
-      return res.status(400).json({ error: "Error uploading image" });
+      return res.status(400).json({ error: err.message });
     }
     next();
   });
@@ -42,26 +49,40 @@ const uploadImage = (req, res, next) => {
 
 const getBlogPosts = async (req, res, next) => {
   try {
-    const { tags } = req.query;
+    const { tags, title } = req.query;
 
-    if (tags) {
-      const blogPosts = await Blog.find({
+    if (title) {
+      const blogPostsByTitle = await Blog.find({
+        title: { $regex: title, $options: "i" },
+        status: "published",
+      });
+
+      if (blogPostsByTitle.length === 0) {
+        return res
+          .status(404)
+          .json({ message: `No blog posts found with the title '${title}'` });
+      }
+
+      res.status(200).json({ data: blogPostsByTitle });
+    } else if (tags) {
+      const blogPostsByTags = await Blog.find({
         tags: { $in: tags.split(",") },
         status: "published",
       });
 
-      if (blogPosts.length === 0) {
+      if (blogPostsByTags.length === 0) {
         return res
           .status(404)
           .json({ message: "No blog posts found with the provided tags" });
       }
 
-      res.status(200).json({ blogPosts });
+      res.status(200).json({ data: blogPostsByTags });
     } else {
       const allBlogPosts = await Blog.find({
         status: "published",
       });
-      res.status(200).json({ allBlogPosts });
+
+      res.status(200).json({ data: allBlogPosts });
     }
   } catch (error) {
     console.error(error);
@@ -132,8 +153,8 @@ const updateBlogPost = async (req, res, next) => {
       }
 
       const blogSchema = Joi.object({
-        title: Joi.string().required(),
-        description: Joi.string().required(),
+        title: Joi.string(),
+        description: Joi.string(),
         tags: Joi.array().items(Joi.string()),
         status: Joi.string().valid("published", "draft").default("published"),
       });
@@ -150,20 +171,19 @@ const updateBlogPost = async (req, res, next) => {
         return res.status(404).json({ error: "Blog post not found" });
       }
 
-      // Update the blog post with validated data
-      blog.title = validatedData.title;
-      blog.description = validatedData.description;
-      blog.tags = validatedData.tags || [];
-      blog.status = validatedData.status?.toLowerCase();
+      const updateFields = {};
 
-      // If an image was uploaded, update the image path
-      if (req.file) {
-        blog.image = req.file.path;
-      }
+      if (validatedData.title) updateFields.title = validatedData.title;
+      if (validatedData.description)
+        updateFields.description = validatedData.description;
+      if (validatedData.tags) updateFields.tags = validatedData.tags;
+      if (validatedData.status)
+        updateFields.status = validatedData.status.toLowerCase();
+      if (req.file) updateFields.image = req.file.path;
 
-      await blog.save();
+      await Blog.updateOne({ _id: id }, { $set: updateFields });
 
-      res.status(200).json({ message: "Blog post updated successfully", blog });
+      res.status(200).json({ message: "Blog post updated successfully" });
     });
   } catch (error) {
     console.error(error);
@@ -171,4 +191,40 @@ const updateBlogPost = async (req, res, next) => {
   }
 };
 
-module.exports = { getBlogPosts, createBlogPost, updateBlogPost };
+const likeBlogPost = async (req, res, next) => {
+  try {
+    const { blogId } = req.params;
+    const { userId } = req.user;
+
+    // Check if the blog post exists
+    const blog = await Blog.findById(blogId);
+    if (!blog) {
+      return res.status(404).json({ error: "Blog post not found" });
+    }
+
+    if (blog.likes.includes(userId)) {
+      blog.likes = blog.likes.filter((likeId) => likeId.toString() !== userId);
+      blog.likesCount -= 1;
+
+      await blog.save();
+      return res.status(200).json({
+        message: "Blog post unliked successfully",
+        likesCount: blog.likesCount,
+      });
+    }
+
+    blog.likes.push(userId);
+    blog.likesCount += 1;
+
+    await blog.save();
+    res.status(200).json({
+      message: "Blog post liked successfully",
+      likesCount: blog.likesCount,
+    });
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+};
+
+module.exports = { getBlogPosts, createBlogPost, updateBlogPost, likeBlogPost };
