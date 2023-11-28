@@ -45,7 +45,7 @@ const signup = async (req, res, next) => {
       firstName,
       lastName,
       phoneNumber,
-      email,
+      email: email.toLowerCase(),
       password,
     });
 
@@ -76,7 +76,7 @@ const login = async (req, res, next) => {
     }
 
     // Find the user by email
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase() });
 
     // Check if the user exists
     if (!user) {

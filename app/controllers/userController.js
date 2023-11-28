@@ -1,4 +1,5 @@
 const User = require("../models/user");
+const Blog = require("../models/blogPost");
 const Joi = require("joi");
 const { validateData } = require("../common/joiValidator");
 
@@ -61,7 +62,7 @@ const updateUserProfile = async (req, res, next) => {
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
     if (phoneNumber) user.phoneNumber = phoneNumber;
-    if (email) user.email = email;
+    if (email) user.email = email.toLowerCase();
 
     // Save the updated user profile
     await user.save();
@@ -84,4 +85,21 @@ const updateUserProfile = async (req, res, next) => {
   }
 };
 
-module.exports = { getUserProfile, updateUserProfile };
+const getUserFavoriteBlogs = async (req, res, next) => {
+  const { userId } = req.user;
+  try {
+    // Find the user's favorite blogs
+    const favoriteBlogs = await Blog.find({ favorites: userId });
+
+    if (favoriteBlogs.length === 0) {
+      return res.status(404).json({ message: "No favorite blog posts found" });
+    }
+
+    res.status(200).json({ data: favoriteBlogs });
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+};
+
+module.exports = { getUserProfile, updateUserProfile, getUserFavoriteBlogs };

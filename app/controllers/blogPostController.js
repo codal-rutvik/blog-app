@@ -2,6 +2,7 @@ const Joi = require("joi");
 const multer = require("multer");
 const { validateData } = require("../common/joiValidator");
 const Blog = require("../models/blogPost");
+const mongoose = require("mongoose");
 
 const uploadImage = (req, res, next) => {
   const storage = multer.diskStorage({
@@ -50,8 +51,26 @@ const uploadImage = (req, res, next) => {
 const getBlogPosts = async (req, res, next) => {
   try {
     const { tags, title } = req.query;
+    const { id } = req.params;
 
-    if (title) {
+    if (id) {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({
+          error: "Invalid blogId. Please provide a valid blog identifier.",
+        });
+      }
+
+      const singleBlogPost = await Blog.findOne({
+        _id: id,
+        status: "published",
+      });
+
+      if (!singleBlogPost) {
+        return res.status(404).json({ message: "Blog post not found" });
+      }
+
+      res.status(200).json({ data: singleBlogPost });
+    } else if (title) {
       const blogPostsByTitle = await Blog.find({
         title: { $regex: title, $options: "i" },
         status: "published",
@@ -66,7 +85,7 @@ const getBlogPosts = async (req, res, next) => {
       res.status(200).json({ data: blogPostsByTitle });
     } else if (tags) {
       const blogPostsByTags = await Blog.find({
-        tags: { $in: tags.split(",") },
+        tags: { $in: tags.split(",").map((tag) => tag.toLowerCase()) },
         status: "published",
       });
 
@@ -110,7 +129,7 @@ const createBlogPost = async (req, res, next) => {
         title: req.body.title,
         description: req.body.description,
         author: userData?.userId,
-        tags: req.body.tags || [],
+        tags: req.body.tags.map((tag) => tag.toLowerCase()) || [],
         status: req.body.status,
       };
 
@@ -126,7 +145,7 @@ const createBlogPost = async (req, res, next) => {
         title: req.body.title,
         description: req.body.description,
         author: userData?.userId,
-        tags: req.body.tags || [],
+        tags: req.body.tags.map((tag) => tag.toLowerCase()) || [],
         status: req.body.status,
         image,
       });
@@ -146,6 +165,7 @@ const createBlogPost = async (req, res, next) => {
 const updateBlogPost = async (req, res, next) => {
   try {
     const { id } = req.params;
+    // const { userId } = req.user;
 
     uploadImage(req, res, async (err) => {
       if (err) {
@@ -163,6 +183,12 @@ const updateBlogPost = async (req, res, next) => {
 
       if (typeof validatedData === "string") {
         return res.status(400).json({ error: validatedData });
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({
+          error: "Invalid blogId. Please provide a valid blog identifier.",
+        });
       }
 
       const blog = await Blog.findById(id);
@@ -191,13 +217,42 @@ const updateBlogPost = async (req, res, next) => {
   }
 };
 
+const deleteBlogPost = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        error: "Invalid blogId. Please provide a valid blog identifier.",
+      });
+    }
+
+    const blog = await Blog.findOneAndDelete({ _id: id });
+
+    if (!blog) {
+      return res.status(404).json({ error: "Blog post not found" });
+    }
+
+    res.status(200).json({ message: "Blog post deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+};
+
 const likeBlogPost = async (req, res, next) => {
   try {
-    const { blogId } = req.params;
+    const { id } = req.params;
     const { userId } = req.user;
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        error: "Invalid blogId. Please provide a valid blog identifier.",
+      });
+    }
+
     // Check if the blog post exists
-    const blog = await Blog.findById(blogId);
+    const blog = await Blog.findById(id);
     if (!blog) {
       return res.status(404).json({ error: "Blog post not found" });
     }
@@ -227,4 +282,53 @@ const likeBlogPost = async (req, res, next) => {
   }
 };
 
-module.exports = { getBlogPosts, createBlogPost, updateBlogPost, likeBlogPost };
+const favoriteBlogPost = async (req, res, next) => {
+  const { id } = req.params;
+  const { userId } = req.user;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        error: "Invalid blogId. Please provide a valid blog identifier.",
+      });
+    }
+
+    const blogPost = await Blog.findById(id);
+
+    if (!blogPost) {
+      return res.status(404).json({ error: "Blog post not found" });
+    }
+
+    const isFavorited = blogPost.favorites.includes(userId);
+
+    if (isFavorited) {
+      // User has already favorited, so unfavorite
+      blogPost.favorites = blogPost.favorites.filter(
+        (id) => id.toString() !== userId
+      );
+    } else {
+      // User has not favorited, so favorite
+      blogPost.favorites.push(userId);
+    }
+
+    await blogPost.save();
+
+    const message = isFavorited
+      ? "Blog post unfavorited successfully"
+      : "Blog post favorited successfully";
+
+    res.status(200).json({ message });
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+};
+
+module.exports = {
+  getBlogPosts,
+  createBlogPost,
+  updateBlogPost,
+  deleteBlogPost,
+  likeBlogPost,
+  favoriteBlogPost,
+};

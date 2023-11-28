@@ -1,6 +1,7 @@
 const Comment = require("../models/comment");
 const Joi = require("joi");
 const { validateData } = require("../common/joiValidator");
+const mongoose = require("mongoose");
 
 const commentSchema = Joi.object({
   text: Joi.string().trim().min(1).max(250).required(),
@@ -38,7 +39,8 @@ const createComment = async (req, res, next) => {
 
 const updateComment = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { commentId, blogId } = req.params;
+    const { userId } = req.user;
     const { text } = req.body;
 
     const validatedData = validateData(req.body, commentSchema);
@@ -47,16 +49,38 @@ const updateComment = async (req, res, next) => {
       return res.status(400).json({ error: validatedData });
     }
 
-    const comment = await Comment.findById(id);
+    if (!mongoose.Types.ObjectId.isValid(blogId)) {
+      return res.status(400).json({
+        error: "Invalid blogId. Please provide a valid blog identifier.",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(commentId)) {
+      return res.status(400).json({
+        error: "Invalid commentId. Please provide a valid comment identifier.",
+      });
+    }
+
+    const comment = await Comment.findById(commentId);
 
     if (!comment) {
       return res.status(404).json({ error: "Comment not found" });
     }
 
+    if (comment.blog.toString() !== blogId) {
+      return res.status(400).json({ error: "Invalid blogId for this comment" });
+    }
+
+    if (comment.user.toString() !== userId) {
+      return res.status(403).json({
+        error: "Permission denied. You do not have the necessary permissions.",
+      });
+    }
+
     comment.text = text;
     await comment.save();
 
-    res.status(200).json({ message: "Comment updated successfully", comment });
+    res.status(200).json({ message: "Comment updated successfully" });
   } catch (error) {
     console.error(error);
     next(error);
@@ -66,6 +90,12 @@ const updateComment = async (req, res, next) => {
 const getAllComments = async (req, res, next) => {
   try {
     const { blogId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(blogId)) {
+      return res.status(400).json({
+        error: "Invalid blogId. Please provide a valid blog identifier.",
+      });
+    }
 
     const comments = await Comment.find({ blog: blogId });
 
@@ -84,12 +114,38 @@ const getAllComments = async (req, res, next) => {
 
 const deleteComment = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const comment = await Comment.findByIdAndDelete(id);
+    const { commentId, blogId } = req.params;
+    const { userId } = req.user;
+
+    if (!mongoose.Types.ObjectId.isValid(commentId)) {
+      return res.status(400).json({
+        error: "Invalid commentId. Please provide a valid comment identifier.",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(blogId)) {
+      return res.status(400).json({
+        error: "Invalid blogId. Please provide a valid blog identifier.",
+      });
+    }
+
+    const comment = await Comment.findById(commentId);
 
     if (!comment) {
       return res.status(404).json({ message: "Comment not found" });
     }
+
+    if (comment.blog.toString() !== blogId) {
+      return res.status(400).json({ error: "Invalid blogId for this comment" });
+    }
+
+    if (comment.user.toString() !== userId) {
+      return res.status(403).json({
+        error: "Permission denied. You do not have the necessary permissions.",
+      });
+    }
+
+    await Comment.findByIdAndDelete(commentId);
 
     res.status(200).json({ message: "Comment deleted successfully" });
   } catch (error) {
@@ -101,12 +157,28 @@ const deleteComment = async (req, res, next) => {
 const likeComment = async (req, res, next) => {
   try {
     const { userId } = req.user;
-    const { commentId } = req.params;
+    const { commentId, blogId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(commentId)) {
+      return res.status(400).json({
+        error: "Invalid commentId. Please provide a valid comment identifier.",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(blogId)) {
+      return res.status(400).json({
+        error: "Invalid blogId. Please provide a valid blog identifier.",
+      });
+    }
 
     // Check if the comment exists
     const comment = await Comment.findById(commentId);
     if (!comment) {
       return res.status(404).json({ error: "Comment not found" });
+    }
+
+    if (comment.blog.toString() !== blogId) {
+      return res.status(400).json({ error: "Invalid blogId for this comment" });
     }
 
     if (comment.likes.includes(userId)) {
