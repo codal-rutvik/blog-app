@@ -89,7 +89,10 @@ const getUserFavoriteBlogs = async (req, res, next) => {
   const { userId } = req.user;
   try {
     // Find the user's favorite blogs
-    const favoriteBlogs = await Blog.find({ favorites: userId });
+    const favoriteBlogs = await Blog.find({
+      favorites: userId,
+      status: "published",
+    }).select("-favorites -__v");
 
     if (favoriteBlogs.length === 0) {
       return res.status(404).json({ message: "No favorite blog posts found" });

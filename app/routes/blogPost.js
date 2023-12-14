@@ -4,7 +4,7 @@ const blogPostController = require("../controllers/blogPostController");
 const authMiddleware = require("../middleware/authMiddleware");
 
 router.get("", blogPostController.getBlogPosts);
-router.get("/:id", blogPostController.getBlogPosts);
+router.get("/:id", blogPostController.getBlog);
 router.post("", authMiddleware, blogPostController.createBlogPost);
 router.put("/:id", authMiddleware, blogPostController.updateBlogPost);
 router.delete("/:id", authMiddleware, blogPostController.deleteBlogPost);

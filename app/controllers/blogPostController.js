@@ -48,22 +48,22 @@ const uploadImage = (req, res, next) => {
   });
 };
 
+const createSlug = (title, id) => {
+  return `${title
+    .toLowerCase()
+    .replace(/[^\w\s]/gi, "")
+    .replace(/\s+/g, "-")
+    .substring(0, 100)}-${id}`;
+};
+
 const getBlogPosts = async (req, res, next) => {
   try {
-    const { tags, title } = req.query;
-    const { id } = req.params;
-
-    if (id) {
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({
-          error: "Invalid blogId. Please provide a valid blog identifier.",
-        });
-      }
-
+    const { tags, title, slug } = req.query;
+    if (slug) {
       const singleBlogPost = await Blog.findOne({
-        _id: id,
+        slug: slug,
         status: "published",
-      });
+      }).select("-favorites -__v");
 
       if (!singleBlogPost) {
         return res.status(404).json({ message: "Blog post not found" });
@@ -74,7 +74,7 @@ const getBlogPosts = async (req, res, next) => {
       const blogPostsByTitle = await Blog.find({
         title: { $regex: title, $options: "i" },
         status: "published",
-      });
+      }).select("-favorites -__v");
 
       if (blogPostsByTitle.length === 0) {
         return res
@@ -87,7 +87,7 @@ const getBlogPosts = async (req, res, next) => {
       const blogPostsByTags = await Blog.find({
         tags: { $in: tags.split(",").map((tag) => tag.toLowerCase()) },
         status: "published",
-      });
+      }).select("-favorites -__v");
 
       if (blogPostsByTags.length === 0) {
         return res
@@ -99,9 +99,37 @@ const getBlogPosts = async (req, res, next) => {
     } else {
       const allBlogPosts = await Blog.find({
         status: "published",
-      });
+      }).select("-favorites -__v");
 
       res.status(200).json({ data: allBlogPosts });
+    }
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+};
+
+const getBlog = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (id) {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({
+          error: "Invalid blogId. Please provide a valid blog identifier.",
+        });
+      }
+
+      const singleBlogPost = await Blog.findOne({
+        _id: id,
+        status: "published",
+      }).select("-favorites -__v");
+
+      if (!singleBlogPost) {
+        return res.status(404).json({ message: "Blog post not found" });
+      }
+
+      res.status(200).json({ data: singleBlogPost });
     }
   } catch (error) {
     console.error(error);
@@ -141,12 +169,17 @@ const createBlogPost = async (req, res, next) => {
 
       const image = req.file ? req.file.path : "";
 
+      const blogId = new mongoose.Types.ObjectId();
+      const slug = createSlug(req?.body?.title, blogId);
+
       const newBlog = new Blog({
+        _id: blogId,
         title: req.body.title,
         description: req.body.description,
         author: userData?.userId,
         tags: req.body.tags.map((tag) => tag.toLowerCase()) || [],
         status: req.body.status,
+        slug,
         image,
       });
 
@@ -165,7 +198,7 @@ const createBlogPost = async (req, res, next) => {
 const updateBlogPost = async (req, res, next) => {
   try {
     const { id } = req.params;
-    // const { userId } = req.user;
+    const { userId } = req.user;
 
     uploadImage(req, res, async (err) => {
       if (err) {
@@ -197,6 +230,13 @@ const updateBlogPost = async (req, res, next) => {
         return res.status(404).json({ error: "Blog post not found" });
       }
 
+      if (blog.author.toString() !== userId) {
+        return res.status(403).json({
+          error:
+            "Permission denied. You do not have the necessary permissions.",
+        });
+      }
+
       const updateFields = {};
 
       if (validatedData.title) updateFields.title = validatedData.title;
@@ -220,6 +260,7 @@ const updateBlogPost = async (req, res, next) => {
 const deleteBlogPost = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const { userId } = req.user;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
@@ -227,11 +268,19 @@ const deleteBlogPost = async (req, res, next) => {
       });
     }
 
-    const blog = await Blog.findOneAndDelete({ _id: id });
+    const blog = await Blog.findById(id);
 
     if (!blog) {
       return res.status(404).json({ error: "Blog post not found" });
     }
+
+    if (blog.author.toString() !== userId) {
+      return res.status(403).json({
+        error: "Permission denied. You do not have the necessary permissions.",
+      });
+    }
+
+    await Blog.findByIdAndDelete(id);
 
     res.status(200).json({ message: "Blog post deleted successfully" });
   } catch (error) {
@@ -306,9 +355,11 @@ const favoriteBlogPost = async (req, res, next) => {
       blogPost.favorites = blogPost.favorites.filter(
         (id) => id.toString() !== userId
       );
+      blogPost.favoriteCount -= 1;
     } else {
       // User has not favorited, so favorite
       blogPost.favorites.push(userId);
+      blogPost.favoriteCount += 1;
     }
 
     await blogPost.save();
@@ -317,7 +368,7 @@ const favoriteBlogPost = async (req, res, next) => {
       ? "Blog post unfavorited successfully"
       : "Blog post favorited successfully";
 
-    res.status(200).json({ message });
+    res.status(200).json({ message, favoriteCount: blogPost.favoriteCount });
   } catch (error) {
     console.error(error);
     next(error);
@@ -326,6 +377,7 @@ const favoriteBlogPost = async (req, res, next) => {
 
 module.exports = {
   getBlogPosts,
+  getBlog,
   createBlogPost,
   updateBlogPost,
   deleteBlogPost,
