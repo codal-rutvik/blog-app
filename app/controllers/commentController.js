@@ -1,4 +1,5 @@
 const Comment = require("../models/comment");
+const Blog = require("../models/blogPost");
 const Joi = require("joi");
 const { validateData } = require("../common/joiValidator");
 const mongoose = require("mongoose");
@@ -13,6 +14,12 @@ const createComment = async (req, res, next) => {
     const { userId } = req.user;
 
     const { blogId } = req.params;
+
+    const existingBlog = await Blog.findById(blogId);
+
+    if (!existingBlog) {
+      return res.status(404).json({ error: "Blog not found" });
+    }
 
     const validatedData = validateData(req.body, commentSchema);
 
@@ -40,7 +47,7 @@ const createComment = async (req, res, next) => {
 const updateComment = async (req, res, next) => {
   try {
     const { commentId, blogId } = req.params;
-    const { userId } = req.user;
+    const { userId, role } = req.user;
     const { text } = req.body;
 
     const validatedData = validateData(req.body, commentSchema);
@@ -71,7 +78,7 @@ const updateComment = async (req, res, next) => {
       return res.status(400).json({ error: "Invalid blogId for this comment" });
     }
 
-    if (comment.user.toString() !== userId) {
+    if (role !== "admin" && comment.user.toString() !== userId) {
       return res.status(403).json({
         error: "Permission denied. You do not have the necessary permissions.",
       });
@@ -115,7 +122,7 @@ const getAllComments = async (req, res, next) => {
 const deleteComment = async (req, res, next) => {
   try {
     const { commentId, blogId } = req.params;
-    const { userId } = req.user;
+    const { userId, role } = req.user;
 
     if (!mongoose.Types.ObjectId.isValid(commentId)) {
       return res.status(400).json({
@@ -139,7 +146,7 @@ const deleteComment = async (req, res, next) => {
       return res.status(400).json({ error: "Invalid blogId for this comment" });
     }
 
-    if (comment.user.toString() !== userId) {
+    if (role !== "admin" && comment.user.toString() !== userId) {
       return res.status(403).json({
         error: "Permission denied. You do not have the necessary permissions.",
       });

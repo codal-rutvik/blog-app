@@ -2,6 +2,7 @@ const Joi = require("joi");
 const multer = require("multer");
 const { validateData } = require("../common/joiValidator");
 const Blog = require("../models/blogPost");
+const Comment = require("../models/comment");
 const mongoose = require("mongoose");
 
 const uploadImage = (req, res, next) => {
@@ -198,7 +199,7 @@ const createBlogPost = async (req, res, next) => {
 const updateBlogPost = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { userId } = req.user;
+    const { userId, role } = req.user;
 
     uploadImage(req, res, async (err) => {
       if (err) {
@@ -230,7 +231,7 @@ const updateBlogPost = async (req, res, next) => {
         return res.status(404).json({ error: "Blog post not found" });
       }
 
-      if (blog.author.toString() !== userId) {
+      if (role !== "admin" && blog.author.toString() !== userId) {
         return res.status(403).json({
           error:
             "Permission denied. You do not have the necessary permissions.",
@@ -260,7 +261,7 @@ const updateBlogPost = async (req, res, next) => {
 const deleteBlogPost = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { userId } = req.user;
+    const { userId, role } = req.user;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
@@ -274,11 +275,14 @@ const deleteBlogPost = async (req, res, next) => {
       return res.status(404).json({ error: "Blog post not found" });
     }
 
-    if (blog.author.toString() !== userId) {
+    if (role !== "admin" && blog.author.toString() !== userId) {
       return res.status(403).json({
         error: "Permission denied. You do not have the necessary permissions.",
       });
     }
+
+    // Find all comments associated with this blog and remove them
+    await Comment.deleteMany({ blog: id });
 
     await Blog.findByIdAndDelete(id);
 
