@@ -1,16 +1,38 @@
 require("dotenv").config();
 const express = require("express");
+const path = require("path");
 const app = express();
 const routes = require("./app/routes");
 const db = require("./app/config/db");
+const passport = require("passport");
+const session = require("express-session");
 const ErrorHandler = require("./app/middleware/errorMiddleware");
+const googleAuthRoutes = require("./app/routes/googleAuth");
+require("./app/middleware/googleAuthMiddleware");
 
 app.use(express.json());
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false },
+  })
+);
 
+app.use(passport.initialize());
+app.use(passport.session());
+
+app.get("/", (req, res) => {
+  const indexPath = path.join(__dirname, "app/client/index.html");
+  res.sendFile(indexPath);
+});
+
+app.use("/", googleAuthRoutes);
 app.use("/api", routes);
+
 app.use("/uploads", express.static("uploads"));
 app.use(ErrorHandler);
-
 // Start the server
 const port = process.env.PORT || 3000;
 app.listen(port, () => {

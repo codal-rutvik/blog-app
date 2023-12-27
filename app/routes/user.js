@@ -4,7 +4,8 @@ const userController = require("../controllers/userController");
 const authMiddleware = require("../middleware/authMiddleware");
 
 router.get("/", authMiddleware, userController.getUserProfile);
-router.put("/", authMiddleware, userController.updateUserProfile);
+router.get("/all", authMiddleware, userController.getAllUsers);
+router.put("/:id", authMiddleware, userController.updateUserProfile);
 router.get("/favorite", authMiddleware, userController.getUserFavoriteBlogs);
 
 module.exports = router;

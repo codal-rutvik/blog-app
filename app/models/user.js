@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema({
     enum: ["user", "admin"],
     default: "user",
   },
+  googleId: String,
 });
 
 // Hash the password before saving to the database
