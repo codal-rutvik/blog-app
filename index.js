@@ -1,11 +1,13 @@
 require("dotenv").config();
 const express = require("express");
+const mongoose = require("mongoose");
 const path = require("path");
 const app = express();
 const routes = require("./app/routes");
 const db = require("./app/config/db");
 const passport = require("passport");
 const session = require("express-session");
+const MongoStore = require("connect-mongo")(session);
 const ErrorHandler = require("./app/middleware/errorMiddleware");
 const googleAuthRoutes = require("./app/routes/googleAuth");
 require("./app/middleware/googleAuthMiddleware");
@@ -16,7 +18,11 @@ app.use(
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
-    cookie: { secure: false },
+    store: new MongoStore({ mongooseConnection: mongoose.connection }),
+    cookie: {
+      secure: false,
+      maxAge: 24 * 60 * 60 * 1000,
+    },
   })
 );
 

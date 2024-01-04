@@ -186,9 +186,7 @@ const createBlogPost = async (req, res, next) => {
 
       await newBlog.save();
 
-      res
-        .status(201)
-        .json({ message: "Blog post created successfully", blog: newBlog });
+      res.status(201).json({ message: "Blog post created successfully" });
     });
   } catch (error) {
     console.error(error);
