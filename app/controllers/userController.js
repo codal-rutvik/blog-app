@@ -16,7 +16,7 @@ const getUserProfile = async (req, res, next) => {
     const { password, ...userProfileData } = user.toObject();
 
     // Return the complete user profile
-    res.status(200).json({ user: userProfileData });
+    res.status(200).json({ data: userProfileData });
   } catch (error) {
     console.error(error);
     next(error);
@@ -74,9 +74,10 @@ const updateUserProfile = async (req, res, next) => {
       email: user.email,
     };
 
-    res
-      .status(200)
-      .json({ message: "User profile updated successfully", updatedUser });
+    res.status(200).json({
+      message: "User profile updated successfully",
+      data: updatedUser,
+    });
   } catch (error) {
     console.error(error);
     next(error);
