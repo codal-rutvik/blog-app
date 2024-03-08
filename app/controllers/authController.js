@@ -45,7 +45,7 @@ const signup = async (req, res, next) => {
       firstName,
       lastName,
       phoneNumber,
-      email,
+      email: email.toLowerCase(),
       password,
     });
 
@@ -76,7 +76,7 @@ const login = async (req, res, next) => {
     }
 
     // Find the user by email
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase() });
 
     // Check if the user exists
     if (!user) {
@@ -94,7 +94,7 @@ const login = async (req, res, next) => {
 
     // Create a JWT token with user data and expiration (1 day)
     const token = jwt.sign(
-      { userId: user._id, email: user.email },
+      { userId: user._id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );

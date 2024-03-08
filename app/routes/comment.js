@@ -3,28 +3,20 @@ const router = express.Router();
 const commenController = require("../controllers/commentController");
 const authMiddleware = require("../middleware/authMiddleware");
 
-router.get(
-  "/:blogId/comments",
-  authMiddleware,
-  commenController.getAllComments
-);
-router.post(
-  "/:blogId/comments",
-  authMiddleware,
-  commenController.createComment
-);
+router.get("/:blogId/comment", authMiddleware, commenController.getAllComments);
+router.post("/:blogId/comment", authMiddleware, commenController.createComment);
 router.put(
-  "/:blogId/comments/:id",
+  "/:blogId/comment/:commentId",
   authMiddleware,
   commenController.updateComment
 );
 router.delete(
-  "/:blogId/comments/:id",
+  "/:blogId/comment/:commentId",
   authMiddleware,
   commenController.deleteComment
 );
 router.post(
-  "/comments/:commentId/like",
+  "/:blogId/comment/:commentId/like",
   authMiddleware,
   commenController.likeComment
 );

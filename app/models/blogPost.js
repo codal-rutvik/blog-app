@@ -35,6 +35,21 @@ const blogSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  favorites: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
+  favoriteCount: {
+    type: Number,
+    default: 0,
+  },
+  slug: {
+    type: String,
+    unique: true,
+    required: true,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
